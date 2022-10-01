@@ -8,7 +8,10 @@ interface SendMessage {
 }
 
 // Variables
-const targetOrigin = "http://localhost:5175";
+const targetOrigin =
+  import.meta.env.MODE === "development"
+    ? "http://localhost:5175"
+    : "https://codeliners-post-message-window-b.netlify.app";
 let newWindow: Window | null = null;
 let intervalId: number;
 let response = ref();
