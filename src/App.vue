@@ -1,66 +1,109 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import { usePopup } from "@ce1pers/use-window";
+import type { SendMessage } from "@ce1pers/use-window/dist/src/usePopup/types";
+import WaitingBox from "@/components/waiting-box.vue";
+import ResponseBox from "@/components/response-box.vue";
 
-// Types
-interface SendMessage {
-  data: string;
-  command: "open" | "data";
-}
+// Hooks.
+const { open, sendMessageToTargetOrigin } = usePopup({
+  onMessageCallback,
+});
 
 // Variables
+const EVERY_SECOND = 1000;
+const MAXIMUM_TIMER_SECONDS = EVERY_SECOND * 10;
+
 const targetOrigin =
   import.meta.env.MODE === "development"
     ? "http://localhost:5556"
     : "https://codeliners-post-message-window-b.netlify.app";
-let newWindow: Window | null = null;
 let intervalId: number;
-let response = ref();
-
-// Initialize.
-window.addEventListener("message", receiveMessage, false);
+const response = ref();
+const isWaitingResponse = ref(false);
+const maximumWaitingSeconds = ref<undefined | number>(undefined);
 
 // Functions
-function receiveMessage(event: MessageEvent) {
+function clearTimer() {
+  clearInterval(intervalId);
+  maximumWaitingSeconds.value = undefined;
+}
+
+function setIsWaitingResponse(status: boolean) {
+  isWaitingResponse.value = status;
+}
+
+function onMessageCallback(event: MessageEvent) {
+  // Destructuring.
   const { data, origin } = event;
   if (origin !== targetOrigin) return;
 
   const parsedData = JSON.parse(data) as SendMessage;
-  if (parsedData.command === "open") {
-    console.log("[receiveMessage] Connected.", data, origin);
-    // Clear interval.
-    clearInterval(intervalId);
-    return;
+
+  switch (parsedData.type) {
+    case "open":
+      clearTimer();
+      // Send message for hand shake.
+      sendMessageToTargetOrigin({ type: "ready", data: "Ready" });
+      break;
+
+    case "close":
+      setIsWaitingResponse(false);
+      break;
+
+    case "data":
+      response.value = parsedData.data;
+      setIsWaitingResponse(false);
+      break;
   }
-
-  response.value = parsedData.data;
 }
 
-function sendMessage({ data, command }: SendMessage) {
-  if (!newWindow) return;
-  newWindow.postMessage(JSON.stringify({ data, command }), targetOrigin);
-}
+function openPopupCallback() {
+  // Set variables.
+  setIsWaitingResponse(true);
+  maximumWaitingSeconds.value = 10;
 
-function openPopup() {
-  const widthValue = 400;
-  const heightValue = widthValue;
-  const leftValue = window.screen.availWidth / 2 - widthValue / 2;
-  const topValue = window.screen.availHeight / 2 - heightValue / 2;
-
-  const windowFeatures = `popup,toolbar,scrollbars=yes,top=${topValue},left=${leftValue},width=${widthValue},height=${heightValue}`;
-
-  newWindow = window.open(targetOrigin, "_blank", windowFeatures);
-
+  // Attempts to reconnect with opened window every second.
   intervalId = window.setInterval(() => {
-    sendMessage({ data: "open", command: "open" });
-  }, 1000);
+    sendMessageToTargetOrigin({ data: "open", type: "open" });
+
+    if (maximumWaitingSeconds.value) {
+      maximumWaitingSeconds.value -= 1;
+    }
+  }, EVERY_SECOND);
+
+  // Control retry maximum count.
+  window.setTimeout(() => {
+    if (isWaitingResponse.value) {
+      alert("Failed to connect to new window.");
+      clearTimer();
+      setIsWaitingResponse(false);
+    }
+  }, MAXIMUM_TIMER_SECONDS);
 }
 </script>
 
 <template>
-  <div>
-    <button @click="openPopup">Open new window</button>
-    <p v-if="response">Response {{ response }}</p>
-  </div>
+  <article>
+    <WaitingBox
+      v-if="isWaitingResponse"
+      :maximum-waiting-seconds="maximumWaitingSeconds"
+    />
+    <ResponseBox
+      v-else
+      :response="response"
+      :open-popup="
+        () =>
+          open({
+            targetOrigin,
+            windowTarget: '_blank',
+            callback: openPopupCallback,
+            width: 400,
+            height: 400,
+          })
+      "
+    />
+  </article>
 </template>
 
 <style scoped></style>
