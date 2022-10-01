@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { usePopup } from "@ce1pers/use-window";
-import type { SendMessage } from "@ce1pers/use-window/dist/src/usePopup/types";
+import { usePopup, SendMessage } from "@ce1pers/window-helpers";
 import WaitingBox from "@/components/waiting-box.vue";
 import ResponseBox from "@/components/response-box.vue";
 
@@ -19,12 +18,14 @@ const targetOrigin =
     ? "http://localhost:5556"
     : "https://codeliners-post-message-window-b.netlify.app";
 let intervalId: number;
+let setTimeoutId: number;
 const response = ref();
 const isWaitingResponse = ref(false);
 const maximumWaitingSeconds = ref<undefined | number>(undefined);
 
 // Functions
 function clearTimer() {
+  clearTimeout(setTimeoutId);
   clearInterval(intervalId);
   maximumWaitingSeconds.value = undefined;
 }
@@ -73,7 +74,7 @@ function openPopupCallback() {
   }, EVERY_SECOND);
 
   // Control retry maximum count.
-  window.setTimeout(() => {
+  setTimeoutId = window.setTimeout(() => {
     if (isWaitingResponse.value) {
       alert("Failed to connect to new window.");
       clearTimer();
