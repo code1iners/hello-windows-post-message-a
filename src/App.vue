@@ -42,7 +42,8 @@ function sendMessage({ data, command }: SendMessage) {
 
 function openPopup() {
   newWindow = window.open(targetOrigin);
-  intervalId = setInterval(() => {
+
+  intervalId = window.setInterval(() => {
     sendMessage({ data: "open", command: "open" });
   }, 1000);
 }
