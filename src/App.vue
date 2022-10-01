@@ -41,7 +41,14 @@ function sendMessage({ data, command }: SendMessage) {
 }
 
 function openPopup() {
-  newWindow = window.open(targetOrigin);
+  const widthValue = 400;
+  const heightValue = widthValue;
+  const leftValue = window.screen.availWidth / 2 - widthValue / 2;
+  const topValue = window.screen.availHeight / 2 - heightValue / 2;
+
+  const windowFeatures = `popup,toolbar,scrollbars=yes,top=${topValue},left=${leftValue},width=${widthValue},height=${heightValue}`;
+
+  newWindow = window.open(targetOrigin, "_blank", windowFeatures);
 
   intervalId = window.setInterval(() => {
     sendMessage({ data: "open", command: "open" });
