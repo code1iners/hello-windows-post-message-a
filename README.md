@@ -7,3 +7,5 @@ This is a simple window post message sample application.
 - Open new window popup B window.
 - Receive response from B window.
 - Display response on screen.
+
+[Sample application page](https://codeliners-post-message-window-a.netlify.app/)
